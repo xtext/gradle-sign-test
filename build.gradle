@@ -1,0 +1,12 @@
+
+
+plugins {
+    id 'java-library'
+    id 'signing'
+}
+
+signing {
+    useGpgCmd()
+    sign configurations.archives
+}
+
