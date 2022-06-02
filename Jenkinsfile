@@ -39,17 +39,21 @@ pipeline {
       steps {
         checkout scm
         wrap([$class: 'Xvnc', takeScreenshot: false, useXauthority: true]) {
-          sh '''
-          echo "$(pwd)"
-          export GPG_TTY=$(tty)
-          gpg --version
-          gpg --batch --import "${KEYRING}"
-          for fpr in $(gpg --list-keys --with-colons  | awk -F: '/fpr:/ {print $10}' | sort -u);
-          do
-            echo -e "5\ny\n" | gpg --batch --command-fd 0 --expert --edit-key $fpr trust;
-          done
-          ./gradlew clean build --info
-          '''
+          withCredentials([string(credentialsId: 'gpg_passphrase', variable: 'GPG_PASSPHRASE')]) {
+            sh '''
+            env
+            echo "$(pwd)"
+            export GPG_TTY=$(tty)
+            gpg --version
+            gpg --batch --import "${KEYRING}"
+            for fpr in $(gpg --list-keys --with-colons  | awk -F: '/fpr:/ {print $10}' | sort -u);
+            do
+              echo -e "5\ny\n" | gpg --batch --command-fd 0 --expert --edit-key $fpr trust;
+            done
+            ls -la /home/jenkins/.gradle/gradle.properties
+            ./gradlew clean build --info -Psigning.gnupg.passphrase=${GPG_PASSPHRASE}
+            '''
+          }
         }
       }
     }
@@ -57,7 +61,7 @@ pipeline {
 
   post {
     success {
-      archiveArtifacts artifacts: 'org.eclipse.xtext.orbitreplacement.repository/target/repository/**'
+      archiveArtifacts artifacts: 'build/libs/**'
     }
     cleanup {
       script {
